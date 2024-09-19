@@ -226,25 +226,3 @@ def delete_projects():
         print(f'deleting {pj}')
         del bd.databases[pj]
 
-
-def check_projects():
-    df_loc_1 = pd.read_csv(r'data/external/Scherer_land_use_match.csv')
-    loc_2 = [act.get('name') for act in bio if "occupation" in act['name'].lower() or
-             'transformation' in act['name'].lower()]
-    loc_2 = [x.replace(",", "") for x in loc_2]
-    loc_2 = [x for x in loc_2 if not (pd.isnull(x))]
-    loc_1 = list(df_loc_1['Occupation']) + list(df_loc_1['Transformation from']) + list(df_loc_1['Transformation to'])
-    loc_1 = [x for x in loc_1 if not (pd.isnull(x))]
-    temp_1 = loc_1.copy()
-    temp_2 = loc_2.copy()
-    for x in loc_2:
-        if x in loc_1:
-            print(x)
-            temp_1.remove(x)
-            temp_2.remove(x)
-
-
-def import_ecoinvent_310():
-    bd.projects.set_current('base_ecoinvent_310')
-    bi.import_ecoinvent_release('3.10', 'cutoff', 'studentethz', 'AwqaDd4E9VLnu-)')
-    a = 0

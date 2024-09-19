@@ -1,24 +1,21 @@
 import os
 import geopandas as gpd
-import pandas as pd
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from matplotlib.colors import ListedColormap
 import matplotlib
 import matplotlib.patches as mpatches
-import plotly.express as px
-import seaborn as sns
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import seaborn as sns
+from matplotlib.colors import ListedColormap
+from plotly.subplots import make_subplots
 
-from src.other.colors import (color6, color_contribution_old2, cmp_green_yellow_orange,
-                              cmp_yellow_green, color6_old, cmp_yellow_orange,
+from src.bw.bw_lcia import lcia_all, lcia_crop_ghg_contribution, lcia_crop_add_price
+from src.other.colors import (color6_old, cmp_yellow_orange,
                               color_dict_residue)
 from src.other.name_match import product_list, residue_crop_dict, get_country_match_df
 from src.other.read_globiom_data import read_globiom_forest_rotation_data
-from src.bw.bw_lcia import lcia_all, lcia_crop_ghg_contribution, lcia_crop_add_price
-from src.bw.bw_scenario_set_up import bw_scenario_set_up
 
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
@@ -126,7 +123,6 @@ def recalculate_impacts(df):
     if 'GTP' in df.columns:
         df['GTP'] = df['GTPxSUST'] / df['SUST']
     return df
-
 
 
 def all_potential_impacts_with_aggregate_forest_impact(year, scenario, price):
@@ -284,54 +280,6 @@ def impact_trade_off(year, scenario, price):
     return df
 
 
-def merit_order_curve(year, scenario, impact, price):
-    df = get_df_combined_potential_impacts(year, scenario, price)
-    df2 = df.copy()
-    df2['AVAI_MAX'] /= 1000 #Mt
-    df2.loc[~df2.Product.isin(product_list), 'Product'] = 'Other agricultural residues'
-    df2 = df2.groupby(by=['Product', 'Country']).sum(numeric_only=True)
-    df2.reset_index(inplace=True)
-    df2 = recalculate_impacts(df2)
-    df2 = df2[df2.Country.isin(['BR', 'CN', 'IN', 'US'])].copy()
-    df3 = df2.groupby(by=['Country']).sum(numeric_only=True)
-    df3 = recalculate_impacts(df3)
-    df3.sort_values(by=[impact], inplace=True)
-    country_order = list(df3.Country.unique())
-    df4 = pd.DataFrame()
-    for country in country_order:
-        df_temp = df2[df2.Country == country].copy()
-        df_temp.sort_values(by=[impact], inplace=True)
-        df4 = pd.concat([df4, df_temp])
-    df4['color'] = df4['Product'].map(color_dict_residue)
-    begin_with = [0]
-    for i in range(0, df4.shape[0] - 1):
-        a = begin_with[-1] + list(df4['AVAI_MAX'])[i]
-        begin_with.append(a)
-    begin_with_2 = [0]
-    impact_value_list_2 = [0]
-    for x in df3.index:
-        production = df3.loc[x, 'AVAI_MAX']
-        impact_value = df3.loc[x, impact]
-        a = begin_with_2[-1] + production
-        begin_with_2.append(a)
-        impact_value_list_2.append(impact_value)
-    handles = []
-    ind1 = list(color_dict_residue.keys())
-    for residue in ind1:
-        b = mpatches.Patch(color=color_dict_residue[residue], label=residue)
-        handles.append(b)
-    fig, ax = plt.subplots(1, 1, figsize=(9, 4), squeeze=True)
-    ax.bar(begin_with, df4[impact],
-                     width=df4['AVAI_MAX'], align='edge',
-                     edgecolor='white', linewidth=0.5, color=df4['color'])
-    xmax = ax.patches[-1].get_x() + ax.patches[-1].get_width()
-    ax.step(begin_with_2, impact_value_list_2, label='post', linewidth=1, color='grey')
-    plt.xlim(0, xmax)
-    plt.legend(handles=handles, framealpha=0.0, loc="upper left")
-    plt.show()
-    return df3
-
-
 def merit_order_curve_single_country(year, scenario, country, impact, price):
     df = get_df_combined_potential_impacts(year, scenario, price)
     df2 = df.copy()
@@ -438,110 +386,6 @@ def impact_heat_map(year, scenario, impact, price):
     fig.show()
 
 
-def wind_rose_plot(year, scenario, price):
-    ghg_name = 'GHG'
-    ghg_name_n = f'{ghg_name}_n'
-    df = get_aggregated_impact(year, scenario, price)
-    upper_fence_dict = calculate_impact_upper_fence(df)
-    for x in [ghg_name, 'BDV', 'WATER']:
-        colname = f'{x}_n'
-        df[colname] = df[x] / upper_fence_dict[x]
-        df.loc[df[colname] < 0, colname] = 0
-    df2 = df[df.Country.isin(['BR', 'CN', 'IN', 'US'])].copy()
-    row_num = 2
-    col_num = 3
-    product_to_plot = ['Forest residues', 'Maize stover', 'Rice straw',
-                    'Soybean straw', 'Sugarcane tops and leaves', 'Wheat straw']
-    fig = make_subplots(rows=row_num, cols=col_num,
-                        specs=[[{"type": "polar"}] * col_num] * row_num,
-                        subplot_titles=product_to_plot)
-    i = 0
-    for product in product_to_plot:
-        df3 = df2[df2.Product == product].copy()
-        ghg_list = []
-        bdv_list = []
-        water_list = []
-        for country in ['BR', 'CN', 'IN', 'US']:
-            if country in list(df3.Country.unique()):
-                ghg = df3.loc[df3.Country == country, ghg_name_n].iloc[0]
-                bdv = df3.loc[df3.Country == country, 'BDV_n'].iloc[0]
-                water = df3.loc[df3.Country == country, 'WATER_n'].iloc[0]
-            else:
-                ghg = 0
-                bdv = 0
-                water = 0
-                print(product, country)
-            theta_list = [30 * i + 15 for i in range(0, 12)]
-            ghg_list += [ghg, 0, 0]
-            bdv_list += [0, bdv, 0]
-            water_list += [0, 0, water]
-        if i == 0:
-            legendtf = True
-        else:
-            legendtf = False
-        for theta in [0, 90, 180, 270]:
-            fig.add_trace(go.Scatterpolar(
-                r=[0, 1],
-                theta=[theta, theta],
-                line_color='grey',
-                line_width=0.5,
-                mode='lines',
-                showlegend=False
-            ), row=i // col_num + 1, col=i % col_num + 1)
-        fig.add_trace(go.Barpolar(
-            r=ghg_list,
-            theta=theta_list,
-            name='Climate change',
-            marker_color=color6[0],
-            opacity=0.8,
-            marker_line_color='black',
-            marker_line_width=1,
-            showlegend=legendtf
-        ), row=i // col_num + 1, col=i % col_num + 1)
-        fig.add_trace(go.Barpolar(
-            r=bdv_list,
-            theta=theta_list,
-            name='Biodiversity',
-            marker_color=color6[1],
-            opacity=0.8,
-            marker_line_color='black',
-            marker_line_width=1,
-            showlegend=legendtf
-        ), row=i // col_num + 1, col=i % col_num + 1)
-        fig.add_trace(go.Barpolar(
-            r=water_list,
-            theta=theta_list,
-            name='Water stress',
-            marker_color=color6[2],
-            opacity=0.8,
-            marker_line_color='black',
-            marker_line_width=1,
-            showlegend=legendtf
-        ), row=i // col_num + 1, col=i % col_num + 1)
-        fig.update_polars(
-            radialaxis=dict(range=[0, 1], showticklabels=False, ticks='',
-                            gridwidth=0.5,
-                            tickvals=[0, 0.5, 1]
-                            ),
-            angularaxis=dict(showticklabels=True, ticks='',
-                             tickvals=[45, 135, 225, 315],
-                             ticktext=['BR', 'CN', 'IN', 'US'],
-                             showgrid=False),
-            row=i // col_num + 1, col=i % col_num + 1,
-            hole=0.3,
-            radialaxis_showline=False
-        )
-        i += 1
-    fig.update_layout(
-        template=None,
-        width=900,
-        height=600
-    )
-    fig.write_image(f'figures/lcia_wind_rose_plot_with_{ghg_name}.png')
-    fig.show()
-    return fig
-
-
 def impact_distribution_box(year, scenario, impact, price):
     df0 = get_aggregated_impact(year, scenario, price)
     df0.loc[~df0.Product.isin(product_list), 'Product'] = 'Others'
@@ -601,156 +445,6 @@ def impact_distribution_box_log(year, scenario, impact, price):
     fig.show()
 
 
-def forest_residue_ratio_global_map_mpl(year, scenario, price):
-    df0 = forest_availability_share(year, scenario, price)
-    world_shape = get_world_shape_file()
-    df = pd.merge(df0, world_shape, on='Country', how='right')
-    df = gpd.GeoDataFrame(df, geometry=df.geometry)
-    fig, ax = plt.subplots(1, 1, figsize=(15, 7))
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes('right', size='5%', pad=0.1)
-    df.plot(column='F_ratio', missing_kwds={'color': 'lightgrey'}, ax=ax, legend=True, cax=cax,
-            cmap=cmp_yellow_green())
-    ax.axis('off')
-    figname = f'figures/lcia_maps/lcia_map_forest_residue_ratio_{year}_{scenario}.png'
-    plt.savefig(figname, bbox_inches='tight')
-    plt.show()
-
-
-def lcia_global_map_mpl_by_product(year, scenario, impact, price):
-    df0 = get_aggregated_impact(year, scenario, price)
-    world_shape = get_world_shape_file()
-    for product in product_list:
-        df_temp = df0[df0.Product == product]
-        df = pd.merge(df_temp, world_shape, on='Country', how='right')
-        df = gpd.GeoDataFrame(df, geometry=df.geometry)
-        fig, ax = plt.subplots(1, 1, figsize=(15, 7))
-        divider = make_axes_locatable(ax)
-        cax = divider.append_axes('right', size='5%', pad=0.1)
-        vmin = 0
-        if 'BDV' in impact:
-            vmax = 2.5e-14
-            if 'TRA' in impact:
-                vmin= -1e-14
-        elif impact == 'WATER':
-            vmax = 25
-        else:
-            vmax = 0.5
-        df.plot(column=impact, missing_kwds={'color': 'lightgrey'}, ax=ax, legend=True, cax=cax,
-                vmin=vmin, vmax=vmax, cmap=cmp_green_yellow_orange())
-        ax.axis('off')
-        figname = f'figures/lcia_maps/lcia_map_{impact}_{product}_{year}_{scenario}.png'
-        plt.savefig(figname, bbox_inches='tight')
-        plt.show()
-
-
-def round_num(number, digits=1):
-    power = "{:e}".format(number).split('e')[1]
-    x = round(number/5, -(int(power) - digits))*5
-    return round(x, -(int(power) - digits))
-
-
-def lcia_global_map_mpl_aggregated_biomass(year, scenario, agg_type, price):
-    df1 = aggregate_impact_no_biomass_cat(year, scenario, price)
-    df2 = aggregate_impact_cat1(year, scenario, price)
-    if agg_type == 'all':
-        df0 = df1.copy()
-    elif agg_type == 'agricultural':
-        df0 = df2[df2.CAT1 == 'Agricultural'].copy()
-    else:
-        df0 = df2[df2.CAT1 == 'Forestry'].copy()
-    world_shape = get_world_shape_file()
-    #world_shape = world_shape.loc[world_shape.COUNTRY != 'Antarctica'].copy()
-    upper_fence_dict = calculate_impact_upper_fence(df1)
-    for impact in ['GHG', 'BDV', 'WATER', 'GHG_TOT']:
-        df = pd.merge(df0, world_shape, on='Country', how='right')
-        df = gpd.GeoDataFrame(df, geometry=df.geometry)
-        fig, ax = plt.subplots(1, 1, figsize=(15, 7))
-        divider = make_axes_locatable(ax)
-        cax = divider.append_axes('right', size='5%', pad=0.1)
-        vmin = 0
-        if 'GHG' in impact:
-            vmax = round_num(upper_fence_dict['GHG'])
-        else:
-            vmax = round_num(upper_fence_dict[impact])
-        df.plot(column=impact, missing_kwds={'color': 'lightgrey'}, ax=ax, legend=True, cax=cax,
-                vmin=vmin, vmax=vmax, cmap=cmp_green_yellow_orange())
-        ax.axis('off')
-        figname = f'figures/lcia_maps/lcia_map_{impact}_aggregated_biomass_{year}_{scenario}_{agg_type}.png'
-        plt.savefig(figname, bbox_inches='tight')
-        figname = f'figures/lcia_maps/lcia_map_{impact}_aggregated_biomass_{year}_{scenario}_{agg_type}.svg'
-        plt.savefig(figname, bbox_inches='tight')
-        plt.show()
-
-
-def impact_distribution_box_aggregated_biomass(year, scenario, aggregate_type, price):
-    if aggregate_type == 'all':
-        df = aggregate_impact_no_biomass_cat(year, scenario, price)
-        add_name = 'aggregated_biomass'
-    else:
-        df = get_aggregated_impact(year, scenario, price)
-        add_name = 'all_biomass'
-    i = 1
-    for impact in ['GHG', 'GHG_TOT', 'BDV', 'WATER']:
-        if 'GHG' in impact:
-            color = color6[0]
-        else:
-            color = color6[i]
-            i += 1
-        fig = go.Figure()
-        fig.add_trace(go.Box(
-            y=df[impact],
-            boxpoints='all',
-            name=impact,
-            marker_color=color,
-            marker_size=4,
-            line_width=1,
-            whiskerwidth=0.5
-        ))
-        fig.update_layout(showlegend=False,
-                          template=None,
-                          width=600,
-                          height=600,
-                          xaxis_showgrid=False,
-                          yaxis_showgrid=False,
-                          yaxis_zeroline=False,
-                          paper_bgcolor='rgba(0, 0, 0, 0)',
-                          plot_bgcolor='rgba(0, 0, 0, 0)'
-                          )
-        fig.write_image(f'figures/lcia_distribution_box_plot_{impact}_{year}_{scenario}_{add_name}.png')
-        fig.show()
-    df2 = aggregate_impact_cat1(year, scenario, price)
-    for impact in ['GHG', 'GHG_TOT', 'BDV', 'WATER']:
-        fig = go.Figure()
-        k = 0
-        for cat in ['Forestry', 'Agricultural']:
-            df3 = df2[df2.CAT1 == cat].copy()
-            fig.add_trace(go.Box(
-                x=df3[impact],
-                # boxpoints='all',
-                name=cat,
-                marker_color=color6_old[k],
-                marker_size=6,
-                line_width=0.75,
-                whiskerwidth=1
-            ))
-            k += 1
-        fig.update_layout(showlegend=False,
-                          template=None,
-                          width=1200,
-                          height=400,
-                          xaxis_showgrid=False,
-                          yaxis_showgrid=False,
-                          yaxis_zeroline=False,
-                          paper_bgcolor='rgba(0, 0, 0, 0)',
-                          plot_bgcolor='rgba(0, 0, 0, 0)'
-                          )
-        fig.write_image(f'figures/lcia_distribution_box_plot_{impact}_{year}_{scenario}_cat1.png')
-        fig.write_image(f'figures/lcia_distribution_box_plot_{impact}_{year}_{scenario}_cat1.svg')
-        fig.write_image(f'figures/lcia_distribution_box_plot_{impact}_{year}_{scenario}_cat1.pdf')
-        fig.show()
-
-
 def ghg_contribution_df(year, scenario, price):
     df0 = get_ghg_contribution_df(year, scenario)
     df = pd.pivot_table(df0, index=['Product', 'Country'], columns='Cat', values='GHG_sub', aggfunc='sum')
@@ -798,65 +492,6 @@ def ghg_contribution_aggregated_cat1(year, scenario, price):
     df['YEAR'] = year
     df['SCENARIO'] = scenario
     return df
-
-
-def biodiversity_contribution_bar_plot_2_cats_4_countries(year, scenario, price):
-    df = aggregate_impact_cat1(year, scenario, price)
-    df = df.sort_values(by='Country')
-    country_to_plot = ['BR', 'CN', 'IN', 'US']
-    df = df.loc[df.Country.isin(country_to_plot)]
-    fig = make_subplots(rows=2, cols=1,
-                        shared_xaxes=True,
-                        shared_yaxes=True,
-                        vertical_spacing=0.1)
-    list_a_tra = list(df.loc[df.CAT1 == 'Agricultural', 'BDV_TRA'])
-    list_a_occ = list(df.loc[df.CAT1 == 'Agricultural', 'BDV_OCC'])
-    list_f_tra = list(df.loc[df.CAT1 == 'Forestry', 'BDV_TRA'])
-    list_f_occ = list(df.loc[df.CAT1 == 'Forestry', 'BDV_OCC'])
-    bar1 = go.Bar(
-        name='Occupation',
-        y=country_to_plot,
-        x=list_f_occ,
-        orientation='h',
-        marker_color=color6[0]
-    )
-    bar2 = go.Bar(
-        name='Transformation',
-        y=country_to_plot,
-        x=list_f_tra,
-        orientation='h',
-        marker_color=color6[1],
-    )
-    bar3 = go.Bar(
-        name='Occupation',
-        y=country_to_plot,
-        x=list_a_occ,
-        orientation='h',
-        marker_color=color6[0],
-        showlegend=False
-    )
-    bar4 = go.Bar(
-        name='Transformation',
-        y=country_to_plot,
-        x=list_a_tra,
-        orientation='h',
-        marker_color=color6[1],
-        showlegend=False
-    )
-    fig.add_trace(bar1, row=1, col=1)
-    fig.add_trace(bar2, row=1, col=1)
-    fig.add_trace(bar3, row=2, col=1)
-    fig.add_trace(bar4, row=2, col=1)
-    fig.update_layout(barmode='relative',
-                      template=None,
-                      width=1200,
-                      height=600
-                      )
-    fig.update_xaxes(showgrid=False, row=1, col=1)
-    fig.update_xaxes(showgrid=False, showline=True, row=2, col=1)
-    fig.write_image(f'figures/lcia_biodiversity_contribution_bar_plot_2_cats_4_countries_{year}_{scenario}.png')
-    fig.show()
-    return fig
 
 
 def ghg_contribution_bar_plot_2_cats_4_countries(year, scenario, price):
@@ -940,124 +575,4 @@ def ghg_contribution_bar_plot_2_cats_4_countries(year, scenario, price):
     fig.update_xaxes(range=[0.3, 0.9], showgrid=False, showline=True, row=2, col=2)
     fig.write_image(f'figures/lcia/lcia_ghg_contribution_bar_plot_2_cats_4_countries_{year}_{scenario}.pdf')
     return fig
-
-
-def ghg_contribution_bar_plot_6_products(year, scenario, country, price):
-    df0 = ghg_contribution_df(year, scenario, price)
-    df = df0.copy()
-    df = df[df.Country == country].copy()
-    df1 = get_aggregated_impact(year, scenario, price)
-    df1 = df1.loc[(df1.Product == 'Forest residues') & (df1.Country == country)].copy()
-    fig = make_subplots(specs=[[{'secondary_y': True}]])
-    i = 0
-    product_to_plot = ['Forest residues', 'Maize stover', 'Rice straw',
-                       'Soybean straw', 'Sugarcane tops and leaves', 'Wheat straw']
-    for cat in ['Onsite, N2O, crop residue', 'Onsite, N2O, fertilizer', 'Onsite, CO2', 'Onsite, CH4',
-                'Land use change', 'Fertilizer production', 'Machinery energy', 'End of life', 'Others']:
-        y_list_1 = []
-        y_list_2 = []
-        if cat == 'End of life':
-            y_list_1.append(df1['GHG_TOT'].iloc[0]-df1['GHG'].iloc[0])
-        elif cat == 'Machinery energy':
-            y_list_1.append(df1['GHG'].iloc[0])
-        else:
-            y_list_1.append(0)
-        for x in product_to_plot[1:]:
-            if x in list(df.Product.unique()):
-                y_list_1.append(df.loc[df.Product == x, cat].iloc[0])
-                y_list_2.append(df.loc[df.Product == x, 'Yield_r'].iloc[0]/df.loc[df.Product == x, 'Alloc_r'].iloc[0])
-            else:
-                y_list_1.append(0)
-                y_list_2.append(0)
-        fig.add_trace(go.Bar(
-            name=cat,
-            x=product_to_plot,
-            y=y_list_1,
-            marker_color=color_contribution_old2[i]
-        ))
-        i += 1
-    fig.add_trace(go.Scatter(
-        x=product_to_plot[1:],
-        y=y_list_2,
-        mode='markers',
-        marker=dict(size=10, color='grey')
-    ), secondary_y=True)
-    fig.update_layout(barmode='stack',
-                      template=None,
-                      width=1500,
-                      height=600,
-                      yaxis2=dict(
-                          range=[0, 80000],
-                          tickmode='sync'
-                      ),
-                      yaxis1=dict(
-                          range=[0, 0.8],
-                      ))
-
-    fig.write_image(f'figures/lcia_ghg_contribution_bar_plot_{country}_{year}_{scenario}.png')
-    fig.show()
-
-    fig = make_subplots(specs=[[{'secondary_y': True}]])
-    i = 0
-    product_to_plot = ['Forest residues', 'Maize stover', 'Rice straw',
-                       'Soybean straw', 'Sugarcane tops and leaves', 'Wheat straw']
-    for cat in ['Onsite, N2O, crop residue', 'Onsite, N2O, fertilizer', 'Onsite, CO2', 'Onsite, CH4',
-                'Land use change', 'Fertilizer production', 'Machinery energy', 'Others']:
-        y_list_1 = []
-        y_list_2 = []
-        if cat == 'Machinery energy':
-            y_list_1.append(df1['GHG'].iloc[0])
-        else:
-            y_list_1.append(0)
-        for x in product_to_plot[1:]:
-            if x in list(df.Product.unique()):
-                y_list_1.append(df.loc[df.Product == x, cat].iloc[0])
-                y_list_2.append(df.loc[df.Product == x, 'Yield_r'].iloc[0]/df.loc[df.Product == x, 'Alloc_r'].iloc[0])
-            else:
-                y_list_1.append(0)
-                y_list_2.append(0)
-        fig.add_trace(go.Bar(
-            name=cat,
-            x=product_to_plot,
-            y=y_list_1,
-            marker_color=color_contribution_old2[i]
-        ))
-        i += 1
-    fig.add_trace(go.Scatter(
-        x=product_to_plot[1:],
-        y=y_list_2,
-        mode='markers',
-        marker=dict(size=10, color='grey')
-    ), secondary_y=True)
-    fig.update_layout(barmode='stack',
-                      template=None,
-                      width=1500,
-                      height=600,
-                      yaxis2=dict(
-                          range=[0, 80000],
-                          tickmode='sync'
-                      ),
-                      yaxis1=dict(
-                          range=[0, 0.4],
-                      ))
-
-    fig.write_image(f'figures/lcia_ghg_contribution_bar_plot_{country}_{year}_{scenario}_no_EOL.png')
-    fig.show()
-    return fig
-
-
-def lcia_global_map_px(year, scenario, product, impact, price):
-    df0 = get_aggregated_impact(year, scenario, price)
-    df0 = df0[df0.Product == product].copy()
-    world_shape = get_world_shape_file()
-    df = pd.merge(df0, world_shape, on='Country', how='left')
-    df = gpd.GeoDataFrame(df, geometry=df.geometry)
-    fig = px.choropleth_mapbox(df,
-                               geojson=df.geometry,
-                               locations=df.index,
-                               color=impact,
-                               mapbox_style='carto-positron')
-    fig.show()
-    return fig
-
 

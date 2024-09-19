@@ -1,21 +1,13 @@
-from src.data.land_use_change import harmonize_land_use_all
-from src.data.agriculture_lci import calculate_fertilizer_products
-from src.other.colors import color_contribution_old, diverging_colors, color37
-from src.bw.bw_lcia import lcia_crop_add_price
-from src.bw.bw_scenario_set_up import bw_scenario_set_up
-
-import os
-import pandas as pd
-import seaborn as sns
-import numpy as np
 import geopandas as gpd
-import matplotlib.pyplot as plt
 import matplotlib
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
-
-from src.visualization.visualization_lcia import get_world_shape_file
+from src.data.land_use_change import harmonize_land_use_all
+from src.other.colors import color_contribution_old, color37
 from src.other.country_match import get_country_match_df_globiom
+from src.visualization.visualization_lcia import get_world_shape_file
 
 
 def plot_country_land_use(country):
@@ -69,40 +61,6 @@ def plot_country_land_use(country):
     plt.savefig(figname, bbox_inches='tight')
     plt.show()
     a=0
-
-
-def plot_fertilizer():
-    if os.path.exists(r'data/interim/crop_lci_fertilizer_dose.csv'):
-        df = pd.read_csv(r'data/interim/crop_lci_fertilizer_dose.csv', index_col=0)
-        df['Country'] = df['Country'].fillna('NA')
-    else:
-        df = calculate_fertilizer_products()
-    df1 = pd.pivot_table(df, columns='SCENARIO', index=['Crop', 'Country', 'YEAR'], values='N_kg_per_ha')
-    df1 = df1.dropna(axis=0)
-    df1.reset_index(inplace=True)
-    df1 = df1[df1.Country == 'CN']
-    fig, ax = plt.subplots(1, 1, figsize=(8, 5))
-    sns.scatterplot(data=df1, x='scenRCPref', y='scenRCP1p9')
-    ax.plot([0, 500], [0, 500])
-    fig.show()
-
-
-def plot_crop_impact_per_ha_land(price):
-    df = pd.DataFrame()
-    for year in [2020, 2030, 2040, 2050]:
-        for scenario in ['scenRCP1p9', 'scenRCPref']:
-            bw_scenario_set_up(year, scenario)
-            df_temp = lcia_crop_add_price(year, scenario, price)
-            df_temp['SCENARIO'] = scenario
-            df_temp['YEAR'] = year
-            df = pd.concat([df, df_temp], axis=0)
-    df1 = pd.pivot_table(df, columns='SCENARIO', index=['Product', 'Country', 'YEAR'], values='GHG')
-    df1 = df1.dropna(axis=0)
-    df1.reset_index(inplace=True)
-    # df1 = df1[df1.Country == 'CN']
-    fig, ax = plt.subplots(1, 1, figsize=(8, 5))
-    sns.scatterplot(data=df1, x='scenRCPref', y='scenRCP1p9')
-    fig.show()
 
 
 def plot_carbon_price_and_bioenergy_demand():

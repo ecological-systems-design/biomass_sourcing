@@ -54,100 +54,6 @@ def check_if_act_is_agri(act):
     return agri_yes_no
 
 
-def regionalize_ecoinvent(year, scenario):
-    if scenario == 'scenRCP1p9':
-        pathway = 'SSP2-RCP19'
-    else:
-        pathway = 'SSP2-Base'
-    db_name = f'ecoinvent_image_{pathway}_{year}'
-    regionalized_db_name = f'{db_name}_regionalized'
-    if regionalized_db_name in list(bd.databases):
-        print(f'{regionalized_db_name} already exist. No need to copy from {db_name}.')
-    else:
-        print(f'start copying {db_name} to {regionalized_db_name}.')
-        bd.Database(db_name).copy(regionalized_db_name)
-        bio = bd.Database("biosphere3")
-        ei = bd.Database(regionalized_db_name)
-        new_bio_db_luc = bd.Database('biosphere luluc regionalized')
-        new_bio_db_water = bd.Database('biosphere water regionalized')
-        # flag_db = ei.metadata.get("regionalized", False)
-        # if not flag_db:
-        print('start regionalizing water and land flows')
-        water_use_list = [act for act in bio if "Water" in act['name']
-                          and 'natural resource' in act['categories']
-                          and 'air' not in act['name']
-                          and 'ocean' not in act['name']
-                          and 'ocean' not in act.get('categories')]
-        water_emission_list = [act for act in bio if "Water" in act['name']
-                               and 'water' in act['categories']
-                               and 'ocean' not in act.get('categories')]
-        water_list = water_use_list + water_emission_list
-        luluc_list = [act for act in bio if ("occupation" in act['name'].lower()
-                                             or 'transformation' in act['name'].lower())
-                      and 'non-use' not in act['name']
-                      and 'obsolete' not in act['name']]
-        i = 0
-        for act in ei:
-            i += 1
-            if i % 100 == 0:
-                print(f'updated {str(i)} activities')
-            agri_yes_no = check_if_act_is_agri(act)
-            for exc in act.exchanges():
-                if exc.input in water_list:
-                    flag_replaced = exc.get("replaced with regionalized", False)
-                    if not flag_replaced:
-                        data = deepcopy(exc.as_dict())
-                        try:
-                            data.pop('flow')
-                        except:
-                            pass
-                        if agri_yes_no >= 1:
-                            exc_name = exc.input['name'] + ', irrigation'
-                            bio_act_regionalized = [
-                                bio_act for bio_act in new_bio_db_water if
-                                bio_act['name'] == exc_name and
-                                bio_act['categories'] == exc.input['categories'] and
-                                bio_act['location'] == act['location']
-                            ]
-                            data['name'] += ', irrigation'
-                        else:
-                            bio_act_regionalized = [
-                                bio_act for bio_act in new_bio_db_water if
-                                bio_act['name'] == exc.input['name'] and
-                                bio_act['categories'] == exc.input['categories'] and
-                                bio_act['location'] == act['location']
-                            ]
-                        assert len(bio_act_regionalized) == 1
-                        bio_act_regionalized = bio_act_regionalized[0]
-                        data['input'] = (bio_act_regionalized['database'], bio_act_regionalized['code'])
-                        act.new_exchange(**data).save()
-                        exc['amount'] = 0
-                        exc['replaced with regionalized'] = True
-                        exc.save()
-                elif exc.input in luluc_list:
-                    flag_replaced = exc.get("replaced with regionalized", False)
-                    if not flag_replaced:
-                        data = deepcopy(exc.as_dict())
-                        try:
-                            data.pop('flow')
-                        except:
-                            pass
-                        bio_act_regionalized = [
-                            bio_act for bio_act in new_bio_db_luc if
-                            bio_act['name'] == exc.input['name'] and
-                            bio_act['categories'] == exc.input['categories'] and
-                            bio_act['location'] == act['location']
-                        ]
-                        assert len(bio_act_regionalized) == 1
-                        bio_act_regionalized = bio_act_regionalized[0]
-                        data['input'] = (bio_act_regionalized['database'], bio_act_regionalized['code'])
-                        act.new_exchange(**data).save()
-                        exc['amount'] = 0
-                        exc['replaced with regionalized'] = True
-                        exc.save()
-        # ei.metadata["regionalized"] = True
-
-
 def regionalize_db(db_name):
     regionalized_db_name = f'{db_name}_regionalized'
     if regionalized_db_name in list(bd.databases):
@@ -267,11 +173,11 @@ def bw_scenario_set_up(year, scenario):
     ei_name = f'ecoinvent_image_{pathway}_{year}'
     af_name = f"agrifootprint 6 {ei_name}"
     import_premise(year, scenario)
-    # regionalize_db(ei_name)
-    # import_agrifootprint(ei_name)
+    regionalize_db(ei_name)
+    import_agrifootprint(ei_name)
     regionalize_db(af_name)
-    # create_crop_lci(year, scenario)
-    # create_forest_lci(year, scenario)
-    # create_chemical_lci(year, scenario)
+    create_crop_lci(year, scenario)
+    create_forest_lci(year, scenario)
+    create_chemical_lci(year, scenario)
     # df = lcia_all(year, scenario)
     # bi.backup_project_directory(project_name)

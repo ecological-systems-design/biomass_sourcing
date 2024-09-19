@@ -355,55 +355,6 @@ def lcia_chemical_level_5():
     return df_out
 
 
-def lcia_luc_forest(year, scenario):
-    product_list = get_forest_acts_for_lcia(year, scenario)
-    product_name_list = []
-    country_list = []
-    lu_list = []
-    value_list = []
-    for act in product_list:
-        if 'sustainable forest management' in act.get('name'):
-            for exc in act.exchanges():
-                if ('Occupation' in exc.get('name') or
-                    'Transformation' in exc.get('name')) and 'traffic area' not in exc.get('name'):
-                    product_name_list.append(act.get('name'))
-                    country_list.append(act.get('location'))
-                    lu_list.append(exc.get('name'))
-                    value_list.append(exc.get('amount'))
-        else:
-            for exc in act.exchanges():
-                if 'sawlog' in exc.get('name'):
-                    amount = exc.get('amount')
-                    act2 = bd.get_activity(exc.get('input'))
-                    for exc2 in act2.exchanges():
-                        if ('Occupation' in exc2.get('name') or
-                            'Transformation' in exc2.get('name')) and 'traffic area' not in exc2.get('name'):
-                            product_name_list.append(act.get('name'))
-                            country_list.append(act.get('location'))
-                            lu_list.append(exc2.get('name'))
-                            value_list.append(exc2.get('amount') * amount)
-
-    df = pd.DataFrame.from_dict({'Product': product_name_list,
-                                 'Country': country_list,
-                                 'LU': lu_list,
-                                 'Value': value_list})
-    df_temp = df.copy()
-    df_temp['name1'] = 'Logging residue'
-    df_temp.loc[df_temp.Product.str.contains('slab'), 'name1'] = 'WoodChips'
-    df_temp.loc[df_temp.Product.str.contains('sawdust'), 'name1'] = 'Sawdust'
-    df_temp['name2'] = 'non-conifer'
-    df_temp.loc[df_temp.Product.str.contains('softwood'), 'name2'] = 'conifer'
-    df_temp['name'] = df_temp[['name1', 'name2']].agg(', '.join, axis=1)
-    df['Product'] = df_temp['name']
-    df = pd.pivot_table(df, index=['Product', 'Country'], columns='LU', values='Value')
-    trans_from_list = [x for x in df.columns if 'Transformation, from' in x]
-    df['Transformation, from primary forest'] = df['Transformation, to forest, extensive'] - \
-                                                df[trans_from_list].sum(axis=1)
-    df.reset_index(inplace=True)
-    df.to_csv(f'data/interim/forest_lci_luc_per_kg_product_{year}_{scenario}.csv')
-    return df
-
-
 def onsite_ghg_glo(year, scenario):
     product_list = get_crop_acts_glo_for_lcia(year, scenario)
     df_ghg = pd.DataFrame()

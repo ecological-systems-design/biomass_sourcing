@@ -15,20 +15,6 @@ bio_dict = {'water_resource': ('biosphere water regionalized', '3406fa5adc8115e4
             'Propionaldehyde': ('biosphere3', '2f2450fa-6720-4b59-9876-10a9ee843958')}
 
 
-def find_biomass_least_and_most_impact(year, scenario, price='normal'):
-    df = lcia_all(year, scenario, price)
-    df['check'] = abs(df['GHG'] - df['GHG'].quantile(0.95))
-    df_min = df[df['check'] == df['check'].min()]
-    biomass = df_min['Product'].iloc[0]
-    biomass_db_list = [db for db in list(bd.databases) if 'update' in db]
-    act_list_min = []
-    for db_name in biomass_db_list:
-        db = bd.Database(db_name)
-        act_min = [act for act in db if df_min['Product'].iloc[0] in act.get('name') and
-        act.get('location') == df_min['Country'].iloc[0]]
-    return df
-
-
 def read_chemical_lci_inputs():
     df = pd.read_excel(r'data/raw_data/Inventory_biomass_fractionation.xlsx', engine='openpyxl', sheet_name='Inputs')
     return df
