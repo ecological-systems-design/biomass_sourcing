@@ -30,9 +30,17 @@ The analysis requires the following external data (in the `data/external/` folde
 * `Siegrist_climate_soil_by_country.xlsx`: Climate and soil data by country, provided by Armin Siegrist.
 * `Scherer_land_use_match.csv`: Table to match land use inventories (ecoinvent) and biodiversity impact assessment methods: downloaded from https://doi.org/10.1007/s11367-021-02003-y
 
-It further requires output data from GLOBIOM (in the `data/globiom/' folder).
+It further requires data from GLOBIOM (in the `data/globiom/` folder).
 
 For data requests, please contact the authors.
+
+## `data/` folder structure
+The `data/` folder contains the following subfolders:
+* `external/`: External data required for the analysis
+* `interim/`: Intermediate data generated during the analysis
+* `processed/`: Processed data generated during the analysis
+* `raw_data/`: Raw data used for the analysis
+* `globiom/`: Data from GLOBIOM
 
 ## Usage
 To run the analysis, install conda environment using the `environment.yml` file. Then, run the script `main.py` in the root folder of the repository.
