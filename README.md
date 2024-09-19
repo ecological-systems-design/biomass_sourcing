@@ -1,6 +1,6 @@
 Welcome to biomass_sourcing!
 ============================
-This is a repository for the manuscript "Regionalized sourcing strategies of lignocellulose residues for a net-zero chemical industry". It allows the calculation of the availability of lignocellulosic residues in from 2000 to 2050 under two RCP scenarios (RCP1.9 and RCP6.5) at a resolution of 200 km x 200 km. It further allows to quantify the prospective environmental impacts of these lignocellulosic residues on the country level with life-cycle assessment (LCA).
+This is a repository for "Regionalized sourcing strategies of lignocellulose residues for a net-zero chemical industry" (https://doi.org/10.1021/acs.est.4c03005). It allows the calculation of the availability of lignocellulosic residues in from 2000 to 2050 under two RCP scenarios (RCP1.9 and RCP6.5) at a resolution of 200 km x 200 km. It further allows to quantify the prospective environmental impacts of these lignocellulosic residues on the country level with life-cycle assessment (LCA).
 
 The analysis is based on the Global Biosphere Management Model (GLOBIOM). The LCA part is based on the Brightway2 framework and the premise tool.
 
