@@ -45,9 +45,6 @@ The `data/` folder contains the following subfolders:
 ## Usage
 To run the analysis, install conda environment using the `environment.yml` file. Then, run the script `main.py` in the root folder of the repository.
 
-## Contact
-**Jing Huo** jhuo@ethz.ch
-
 ## Acknowledgments
 This publication was created as part of NCCR Catalysis (grant number 180544), a National Centre of Competence in Research funded by the Swiss National Science Foundation. 
 
