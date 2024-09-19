@@ -1,6 +1,6 @@
 Welcome to biomass_sourcing!
 ============================
-This is a repository for "Regionalized sourcing strategies of lignocellulose residues for a net-zero chemical industry" (https://doi.org/10.1021/acs.est.4c03005). It allows the calculation of the availability of lignocellulosic residues in from 2000 to 2050 under two RCP scenarios (RCP1.9 and RCP6.5) at a resolution of 200 km x 200 km. It further allows to quantify the prospective environmental impacts of these lignocellulosic residues on the country level with life-cycle assessment (LCA).
+This is a repository for the publication "Regionalized sourcing strategies of lignocellulose residues for a net-zero chemical industry" (https://doi.org/10.1021/acs.est.4c03005). It allows the calculation of the availability of lignocellulosic residues in from 2000 to 2050 under two RCP scenarios (RCP1.9 and RCP6.5) at a resolution of 200 km x 200 km. It further allows to quantify the prospective environmental impacts of these lignocellulosic residues on the country level with life-cycle assessment (LCA).
 
 The analysis is based on the Global Biosphere Management Model (GLOBIOM). The LCA part is based on the Brightway2 framework and the premise tool.
 
@@ -20,7 +20,7 @@ The repository contains the following files:
 The analysis requires the following external data (in the `data/external/` folder):
 * `Agrifootprint6_economic.csv`: Agri-footprint 6, economic allocation database, exported as csv file with Simapro 9.4.0.2. https://simapro.com/products/agri-footprint-database/
 * `AWARE_water_CF.xlsx`: Water scarcity characterization factors on the country level based on AWARE method, downloaded from https://wulca-waterlca.org/wordpress/wp-content/uploads/AWARE_country_regions_Corrected_online_20230113-1.xlsx
-* `biodiversity_CF_country_domain.csv`: Land-use related biodiversity loss characterization factors on the country level, provided by Laura Scherer.
+* `biodiversity_CF_country_domain.csv`: Land-use related biodiversity loss characterization factors on the country level, provided by Laura Scherer. Related publication: https://pubs.acs.org/doi/10.1021/acs.est.3c04191
 * `FAOSTAT_crop_harvest_area.csv`: Crops and livestock products data from FAOSTAT, for ALL COUNTRIES, ITEMS="Crops, primary>(List)", ELEMENTS="Area harvested", YEARS=2019-2021, downloaded from https://www.fao.org/faostat/en/#data/QCL
 * `FAOSTAT_fertilizer_product.csv`: Fertilizer by Product data from FAOSTAT, for ALL COUNTRIES, ALL ITEMS, ELEMENTS="Production Quantity", YEARS=2018-2020, downloaded from https://www.fao.org/faostat/en/#data/RFB
 * `FRA_biomass_stock.xlsx`: Biomass stock data from FRA 2020, for ALL Countries, ALL FRA Variables (Above-ground biomass, Below-ground biomass, Dead wood), Year=2020, downloaded from https://fra-data.fao.org/assessments/fra/2020/WO/sections/biomassStock
